@@ -379,6 +379,10 @@
       <p>Ficha Completa de Avaliação e Procedimento</p>
     </div>
 
+    <div class="recado" style="text-align: center; padding: 10px 20px; background: #f7fafc; border-bottom: 1px solid #e2e8f0; font-size: 0.9rem; color: #4a5568;">
+      <strong>Criado pelo Gerolamo para sua mamae! Te amo mamae!</strong>
+    </div>
+
     <div class="form-content">
       <form id="anamForm">
         <!-- Dados Pessoais -->
@@ -499,6 +503,14 @@
               <label for="hepatite">Hepatite</label>
             </div>
           </div>
+
+          <!-- Campo para especificar medicamentos -->
+          <div class="form-row" style="margin-top: 20px;">
+            <div class="form-group">
+              <label for="quaisMedicamentos">Quais medicamentos utiliza? (caso tenha marcado a opção acima)</label>
+              <textarea id="quaisMedicamentos" placeholder="Liste os medicamentos em uso, dosagens e frequência..."></textarea>
+            </div>
+          </div>
         </div>
 
         <!-- Procedimento -->
@@ -571,8 +583,12 @@
             </div>
           </div>
 
-          <h3>Patologias Ungueais</h3>
+          <h3>Formato da Unha</h3>
           <div class="checkbox-grid">
+            <div class="checkbox-item">
+              <input type="checkbox" id="normal">
+              <label for="normal">Normal</label>
+            </div>
             <div class="checkbox-item">
               <input type="checkbox" id="telhas">
               <label for="telhas">Telhas</label>
@@ -606,11 +622,6 @@
             </div>
           </div>
 
-          <div class="form-row">
-            <div class="form-group">
-              <label for="profissional">Profissional Responsável</label>
-              <input type="text" id="profissional">
-            </div>
             <div class="form-group">
               <label for="data">Data do Atendimento</label>
               <input type="date" id="data">
@@ -681,6 +692,13 @@
           
           <strong>Condições de Saúde Identificadas:</strong>
           <div class="doc-list" id="docCondicoes"></div>
+
+          <div class="doc-info" id="medicamentosSection" style="margin-top: 15px; display: none;">
+            <div class="doc-info-item" style="grid-column: 1 / -1;">
+              <strong>Medicamentos em Uso</strong>
+              <span id="docMedicamentos">-</span>
+            </div>
+          </div>
         </div>
 
         <div class="doc-section">
@@ -705,7 +723,7 @@
           </div>
           
           <div>
-            <strong>Patologias Ungueais:</strong>
+            <strong>Formato da Unha:</strong>
             <div class="doc-list" id="docUngueais"></div>
           </div>
         </div>
@@ -717,13 +735,11 @@
             <span id="docProcedimento">-</span>
           </div>
           
-          <div class = image_feet>
-            <img src="feet.png" alt="feet" width="600" height="400">
+          <div class="image_feet">
+            <img src="feet.png" alt="feet" width="600" height="400" style="max-width: 100%; height: auto;">
+          </div>
 
-          <div class="doc-info">
-            <div class="doc-info-item">
-              <strong>Profissional Responsável</strong>
-              <span id="docProfissional">-</span>
+
             </div>
             <div class="doc-info-item">
               <strong>Data do Atendimento</strong>
@@ -809,6 +825,16 @@
         });
       }
 
+      // Medicamentos
+      const medicamentos = document.getElementById("quaisMedicamentos").value.trim();
+      const medicamentosSection = document.getElementById("medicamentosSection");
+      if (medicamentos) {
+        document.getElementById("docMedicamentos").textContent = medicamentos;
+        medicamentosSection.style.display = "block";
+      } else {
+        medicamentosSection.style.display = "none";
+      }
+
       // Observações
       document.getElementById("docObsPd").textContent = document.getElementById("obsPd").value || "Sem observações específicas";
       document.getElementById("docObsPe").textContent = document.getElementById("obsPe").value || "Sem observações específicas";
@@ -841,9 +867,9 @@
         });
       }
 
-      // Patologias Ungueais
-      let ungChecks = ["telhas","funil","gancho","caracol","distrofica","torques"];
-      let ungLabels = ["Telhas","Funil","Gancho","Caracol","Distrófica","Torquês"];
+      // Formato da Unha
+      let ungChecks = ["normal","telhas","funil","gancho","caracol","distrofica","torques"];
+      let ungLabels = ["Normal","Telhas","Funil","Gancho","Caracol","Distrófica","Torquês"];
       
       let containerUng = document.getElementById("docUngueais");
       containerUng.innerHTML = "";
@@ -858,7 +884,7 @@
       if (ungFound.length === 0) {
         let div = document.createElement("div");
         div.className = "doc-list-item";
-        div.textContent = "Nenhuma patologia ungueal identificada";
+        div.textContent = "Formato não especificado";
         containerUng.appendChild(div);
       } else {
         ungFound.forEach(item => {
@@ -871,7 +897,7 @@
 
       // Procedimento e dados finais
       document.getElementById("docProcedimento").textContent = document.getElementById("procedimento").value || "Procedimento não especificado";
-      document.getElementById("docProfissional").textContent = document.getElementById("profissional").value || "-";
+
       
       // Formatação da data
       const dataInput = document.getElementById("data").value;
@@ -959,39 +985,6 @@
         Limpar Formulário
       </button>
     `;
-
-    // Salvar dados localmente (opcional - comentado por segurança)
-    /*
-    function salvarRascunho() {
-      const formData = new FormData(document.getElementById('anamForm'));
-      const data = {};
-      for (let [key, value] of formData.entries()) {
-        data[key] = value;
-      }
-      localStorage.setItem('rascunho_anamnese', JSON.stringify(data));
-      alert('Rascunho salvo com sucesso!');
-    }
-    
-    function carregarRascunho() {
-      const rascunho = localStorage.getItem('rascunho_anamnese');
-      if (rascunho && confirm('Deseja carregar o último rascunho salvo?')) {
-        const data = JSON.parse(rascunho);
-        Object.keys(data).forEach(key => {
-          const element = document.getElementById(key);
-          if (element) {
-            if (element.type === 'checkbox') {
-              element.checked = data[key] === 'on';
-            } else {
-              element.value = data[key];
-            }
-          }
-        });
-      }
-    }
-    
-    // Carregar rascunho ao iniciar
-    window.addEventListener('load', carregarRascunho);
-    */
   </script>
 </body>
 </html>
