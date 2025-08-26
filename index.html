@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>Anamnese e Procedimento Podológico</title>
   <style>
     * {
@@ -18,6 +18,8 @@
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       min-height: 100vh;
       padding: 20px;
+      /* Prevent elastic scrolling on iOS */
+      overscroll-behavior: none;
     }
 
     .container {
@@ -214,6 +216,42 @@
       transform: translateY(0);
     }
 
+    /* Canvas Container - Fixed for mobile */
+    .canvas-container {
+      position: relative;
+      display: inline-block;
+      width: 100%;
+      max-width: 600px;
+      margin: 0 auto;
+      /* Prevent touch scrolling issues */
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    #feetImage {
+      width: 100%;
+      height: auto;
+      display: block;
+      max-width: 100%;
+    }
+
+    #drawingCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      cursor: crosshair;
+      width: 100%;
+      height: 100%;
+      /* Prevent canvas clearing on mobile viewport changes */
+      image-rendering: pixelated;
+      /* Prevent touch events from scrolling */
+      touch-action: none;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
     /* Document Styles */
     .document {
       display: none;
@@ -348,6 +386,11 @@
     @media (max-width: 768px) {
       body {
         padding: 10px;
+        /* Prevent bounce on iOS */
+        position: fixed;
+        width: 100%;
+        height: 100%;
+        overflow-y: auto;
       }
       
       .form-content {
@@ -368,6 +411,13 @@
       
       .checkbox-grid {
         grid-template-columns: 1fr;
+      }
+
+      .canvas-container {
+        /* Extra protection for mobile */
+        -webkit-user-select: none;
+        -webkit-touch-callout: none;
+        -webkit-tap-highlight-color: transparent;
       }
     }
   </style>
@@ -656,14 +706,13 @@
               </div>
             </div>
 
-            <!-- Canvas Container -->
-            <div style="position: relative; ">
-              <img id="feetImage" src="feet.png" 
-                   style="max-width: 100%; height: auto; display: block;">
+            <!-- Canvas Container with Fixed Mobile Support -->
+            <div class="canvas-container">
+              <img id="feetImage" src="data:image/svg+xml,%3csvg width='600' height='400' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='100%25' height='100%25' fill='%23f0f8ff'/%3e%3ctext x='50%25' y='50%25' font-size='24' text-anchor='middle' fill='%23666'%3eFeet Diagram Placeholder%3c/text%3e%3c/svg%3e" 
+                   alt="Diagrama dos pés">
               <canvas id="drawingCanvas" 
                       width="600" 
-                      height="400" 
-                      style="position: absolute; top: 0; left: 0; cursor: crosshair; width: 100%; height: 100%;">
+                      height="400">
               </canvas>
             </div>
             
@@ -688,13 +737,15 @@
           <button type="button" class="btn" onclick="preencherDocumento()">
             Gerar Documento Profissional
           </button>
+          <button type="button" class="btn" onclick="limparFormulario()" style="background: linear-gradient(135deg, #e53e3e 0%, #c53030 100%); margin-left: 10px;">
+            Limpar Formulário
+          </button>
         </div>
       </form>
     </div>
 
     <!-- DOCUMENT PREVIEW -->
     <div class="document" id="doc">
-      
       <div class="document-content">
         <div class="doc-section">
           <h3>Identificação do Paciente</h3>
@@ -791,7 +842,7 @@
           </div>
           
           <div class="image_feet">
-            <img id="documentFeetImage" src="feet.png" 
+            <img id="documentFeetImage" src="data:image/svg+xml,%3csvg width='600' height='400' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='100%25' height='100%25' fill='%23f0f8ff'/%3e%3ctext x='50%25' y='50%25' font-size='24' text-anchor='middle' fill='%23666'%3eFeet Diagram%3c/text%3e%3c/svg%3e" 
                  alt="Diagrama dos Pés" style="max-width: 100%; height: auto;">
             <canvas id="documentCanvas" width="600" height="400" style="display: none;"></canvas>
           </div>
@@ -828,7 +879,31 @@
   // Auto-set current date
   document.getElementById('data').value = new Date().toISOString().split('T')[0];
 
+  // === Mobile Canvas Fix - Preserve drawings during viewport changes ===
+  let canvasState = null;
+  let isCanvasReady = false;
+
+  function saveCanvasState() {
+    if (canvas && canvas.getContext) {
+      canvasState = canvas.toDataURL();
+    }
+  }
+
+  function restoreCanvasState() {
+    if (canvasState && canvas && ctx) {
+      const img = new Image();
+      img.onload = function() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0);
+      };
+      img.src = canvasState;
+    }
+  }
+
   function preencherDocumento() {
+    // Save canvas before processing
+    saveCanvasState();
+
     // Validação básica
     const nome = document.getElementById("nome").value.trim();
     if (!nome) {
@@ -1037,17 +1112,14 @@
       document.getElementById('anamForm').reset();
       document.getElementById('data').value = new Date().toISOString().split('T')[0];
       document.getElementById('doc').style.display = 'none';
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+      canvasState = null;
     }
   }
 
-  document.querySelector('.btn-container').innerHTML += `
-    <button type="button" class="btn" onclick="limparFormulario()" style="background: linear-gradient(135deg, #e53e3e 0%, #c53030 100%); margin-left: 10px;">
-      Limpar Formulário
-    </button>
-  `;
-
-  // === Drawing setup ===
+  // === Drawing setup with mobile fixes ===
   const canvas = document.getElementById('drawingCanvas');
   const ctx = canvas.getContext('2d');
   const feetImage = document.getElementById('feetImage');
@@ -1087,27 +1159,41 @@
     document.getElementById('sizeDisplay').textContent = e.target.value + 'px';
   });
 
-  // Drawing functions
-  function startDrawing(e) {
-    isDrawing = true;
+  // Drawing functions with mobile viewport protection
+  function getEventPos(e) {
     const rect = canvas.getBoundingClientRect();
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
-    const x = (e.clientX - rect.left) * scaleX;
-    const y = (e.clientY - rect.top) * scaleY;
+    
+    let clientX, clientY;
+    if (e.touches && e.touches[0]) {
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else {
+      clientX = e.clientX;
+      clientY = e.clientY;
+    }
+    
+    return {
+      x: (clientX - rect.left) * scaleX,
+      y: (clientY - rect.top) * scaleY
+    };
+  }
 
+  function startDrawing(e) {
+    e.preventDefault();
+    saveCanvasState(); // Save state before starting to draw
+    isDrawing = true;
+    const pos = getEventPos(e);
     ctx.beginPath();
-    ctx.moveTo(x, y);
+    ctx.moveTo(pos.x, pos.y);
   }
 
   function draw(e) {
     if (!isDrawing) return;
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    const x = (e.clientX - rect.left) * scaleX;
-    const y = (e.clientY - rect.top) * scaleY;
-
+    e.preventDefault();
+    
+    const pos = getEventPos(e);
     ctx.lineWidth = currentSize;
     ctx.lineCap = 'round';
 
@@ -1121,105 +1207,145 @@
       ctx.globalCompositeOperation = 'destination-out';
     }
 
-    ctx.lineTo(x, y);
+    ctx.lineTo(pos.x, pos.y);
     ctx.stroke();
     ctx.beginPath();
-    ctx.moveTo(x, y);
+    ctx.moveTo(pos.x, pos.y);
   }
 
-  function stopDrawing() {
-    isDrawing = false;
-    ctx.beginPath();
+  function stopDrawing(e) {
+    if (isDrawing) {
+      e.preventDefault();
+      isDrawing = false;
+      ctx.beginPath();
+      saveCanvasState(); // Save after drawing is complete
+    }
   }
 
   function clearDrawing() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    canvasState = null;
   }
 
-  // Mouse & touch events
+  // Mouse events
   canvas.addEventListener('mousedown', startDrawing);
   canvas.addEventListener('mousemove', draw);
   canvas.addEventListener('mouseup', stopDrawing);
   canvas.addEventListener('mouseout', stopDrawing);
 
-  canvas.addEventListener('touchstart', (e) => {
-    e.preventDefault();
-    const touch = e.touches[0];
-    const mouseEvent = new MouseEvent('mousedown', {
-      clientX: touch.clientX,
-      clientY: touch.clientY
-    });
-    canvas.dispatchEvent(mouseEvent);
-  });
+  // Touch events with better mobile support
+  canvas.addEventListener('touchstart', startDrawing, { passive: false });
+  canvas.addEventListener('touchmove', draw, { passive: false });
+  canvas.addEventListener('touchend', stopDrawing, { passive: false });
+  canvas.addEventListener('touchcancel', stopDrawing, { passive: false });
 
-  canvas.addEventListener('touchmove', (e) => {
-    e.preventDefault();
-    const touch = e.touches[0];
-    const mouseEvent = new MouseEvent('mousemove', {
-      clientX: touch.clientX,
-      clientY: touch.clientY
-    });
-    canvas.dispatchEvent(mouseEvent);
-  });
-
-  canvas.addEventListener('touchend', (e) => {
-    e.preventDefault();
-    const mouseEvent = new MouseEvent('mouseup', {});
-    canvas.dispatchEvent(mouseEvent);
-  });
-
-  // === Resize canvas to image ===
-  function resizeDrawingCanvasToImage() {
+  // === Canvas resize with state preservation ===
+  function resizeDrawingCanvas() {
+    saveCanvasState(); // Save before resizing
+    
     const rect = feetImage.getBoundingClientRect();
-    canvas.width = rect.width;
-    canvas.height = rect.height;
-    canvas.style.width = rect.width + 'px';
-    canvas.style.height = rect.height + 'px';
+    const newWidth = Math.max(rect.width, 300);
+    const newHeight = Math.max(rect.height, 200);
+    
+    // Only resize if dimensions changed significantly
+    if (Math.abs(canvas.offsetWidth - newWidth) > 5 || Math.abs(canvas.offsetHeight - newHeight) > 5) {
+      canvas.style.width = newWidth + 'px';
+      canvas.style.height = newHeight + 'px';
+      
+      // Restore drawings after resize
+      setTimeout(() => {
+        restoreCanvasState();
+      }, 50);
+    }
   }
 
-  feetImage.onload = resizeDrawingCanvasToImage;
-  window.addEventListener('resize', resizeDrawingCanvasToImage);
+  // Initialize canvas size
+  function initializeCanvas() {
+    if (feetImage.complete) {
+      resizeDrawingCanvas();
+      isCanvasReady = true;
+    } else {
+      feetImage.onload = () => {
+        resizeDrawingCanvas();
+        isCanvasReady = true;
+      };
+    }
+  }
+
+  // Debounced resize handler to prevent excessive resizing
+  let resizeTimeout;
+  window.addEventListener('resize', () => {
+    if (resizeTimeout) clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+      if (isCanvasReady) {
+        resizeDrawingCanvas();
+      }
+    }, 150);
+  });
+
+  // Mobile viewport change detection
+  let lastViewportHeight = window.innerHeight;
+  window.addEventListener('resize', () => {
+    const currentHeight = window.innerHeight;
+    const heightDiff = Math.abs(currentHeight - lastViewportHeight);
+    
+    // If height change is significant (likely mobile nav bar), preserve canvas
+    if (heightDiff > 50) {
+      saveCanvasState();
+      setTimeout(restoreCanvasState, 100);
+    }
+    
+    lastViewportHeight = currentHeight;
+  });
 
   // === Export annotated image ===
   function createAnnotatedImage() {
-  const documentCanvas = document.getElementById('documentCanvas');
-  const documentCtx = documentCanvas.getContext('2d');
-  const imgEl = document.getElementById('feetImage');
+    const documentCanvas = document.getElementById('documentCanvas');
+    const documentCtx = documentCanvas.getContext('2d');
+    const imgEl = document.getElementById('feetImage');
 
-  // Fallback if image not loaded yet
-  if (!imgEl || (!imgEl.naturalWidth && !imgEl.width)) {
-    // try again after a short delay
-    setTimeout(createAnnotatedImage, 100);
-    return;
+    // Ensure image is loaded
+    if (!imgEl || (!imgEl.naturalWidth && !imgEl.width)) {
+      setTimeout(createAnnotatedImage, 100);
+      return;
+    }
+
+    const imgW = imgEl.naturalWidth || 600;
+    const imgH = imgEl.naturalHeight || 400;
+
+    documentCanvas.width = imgW;
+    documentCanvas.height = imgH;
+
+    // Draw background
+    documentCtx.clearRect(0, 0, imgW, imgH);
+    documentCtx.drawImage(imgEl, 0, 0, imgW, imgH);
+
+    // Draw annotations scaled properly
+    if (canvas && canvas.width && canvas.height) {
+      documentCtx.drawImage(
+        canvas,
+        0, 0, canvas.width, canvas.height,
+        0, 0, imgW, imgH
+      );
+    }
+
+    // Set as document image
+    const dataURL = documentCanvas.toDataURL("image/png");
+    document.getElementById('documentFeetImage').src = dataURL;
   }
 
-  const imgW = imgEl.naturalWidth || imgEl.width;
-  const imgH = imgEl.naturalHeight || imgEl.height;
+  // Initialize everything when DOM is ready
+  document.addEventListener('DOMContentLoaded', () => {
+    initializeCanvas();
+  });
 
-  // Export at the image's natural resolution
-  documentCanvas.width = imgW;
-  documentCanvas.height = imgH;
-
-  // Draw the background photo at full resolution
-  documentCtx.clearRect(0, 0, imgW, imgH);
-  documentCtx.drawImage(imgEl, 0, 0, imgW, imgH);
-
-  // Draw the user's annotations scaled to match the export resolution
-  // canvas (drawingCanvas) is at current displayed resolution; scale it to imgW x imgH
-  const drawCanvas = document.getElementById('drawingCanvas');
-  if (drawCanvas && drawCanvas.width && drawCanvas.height) {
-    documentCtx.drawImage(
-      drawCanvas,
-      0, 0, drawCanvas.width, drawCanvas.height,   // source rect
-      0, 0, imgW, imgH                              // destination rect (scaled)
-    );
+  // Also try to initialize immediately if already loaded
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeCanvas);
+  } else {
+    initializeCanvas();
   }
-
-  // Export merged image
-  const dataURL = documentCanvas.toDataURL("image/png");
-  document.getElementById('documentFeetImage').src = dataURL;
-}
-</script>
+  </script>
 
 </body>
 </html>
